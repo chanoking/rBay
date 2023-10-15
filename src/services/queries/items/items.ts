@@ -1,7 +1,9 @@
-import { itemsKey } from '$services/keys';
+import { itemsByEndingAtKeys, itemsByViewsKey, itemsKey } from '$services/keys';
 import { client } from '$services/redis';
 import type { CreateItemAttrs } from '$services/types';
 import { genId } from '$services/utils';
+import { DateTime } from 'luxon';
+import { itemsByViews } from './by-views';
 import { deserialize } from './deserialize';
 import { serialize } from './serialize';
 
@@ -36,7 +38,16 @@ export const createItem = async (attrs: CreateItemAttrs, userId: string) => {
 
 	const serialized = serialize(attrs);
 
-	await client.hSet(itemsKey(id), serialized);
-
+	await Promise.all([
+		await client.hSet(itemsKey(id), serialized),
+		await client.zAdd(itemsByViewsKey(), {
+			value: id,
+			score: 0
+		}),
+		client.zAdd(itemsByEndingAtKeys(), {
+			value: id,
+			score: attrs.endingAt.toMillis()
+		})
+	]);
 	return id;
 };
