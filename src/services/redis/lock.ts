@@ -34,9 +34,8 @@ export const withLock = async (key: string, cb: (redisClient: Client, signal: an
 				signal.expired = true;
 			}, timeoutMs);
 
-			const ProxiedClient = buildClientProxy(timeoutMs);
-
-			const result = await cb(ProxiedClient, signal);
+			const proxiedClient = buildClientProxy(timeoutMs);
+			const result = await cb(proxiedClient, signal);
 			return result;
 		} finally {
 			await client.unlock(lockKey, token);
@@ -51,7 +50,7 @@ const buildClientProxy = (timeoutMs: number) => {
 	const handler = {
 		get(target: Client, prop: keyof Client) {
 			if (Date.now() >= startTime + timeoutMs) {
-				throw new Error('Lcok has expired.');
+				throw new Error('Lock has expired.');
 			}
 
 			const value = target[prop];
